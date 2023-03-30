@@ -1,0 +1,10 @@
+app:
+  name: 'secret_santa_app'
+  version: '1.0.0'
+
+http:
+  port: '8080'
+
+logger:
+  log_level: 'debug'
+  rollbar_env: 'secret_santa'
