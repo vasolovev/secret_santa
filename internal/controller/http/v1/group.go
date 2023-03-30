@@ -3,90 +3,83 @@ package v1
 import (
 	"net/http"
 
-	"github.com/evrone/go-clean-template/pkg/logger"
 	"github.com/gin-gonic/gin"
+	"github.com/vasolovev/secret_santa/internal/entity"
+	"github.com/vasolovev/secret_santa/internal/usecase"
+	"github.com/vasolovev/secret_santa/pkg/logger"
 )
 
 type groupRoutes struct {
-	t usecase.group
+	u usecase.Groups
 	l logger.Interface
 }
 
-func newgroupRoutes(handler *gin.RouterGroup, t usecase.group, l logger.Interface) {
-	r := &groupRoutes{t, l}
+func newGroupRoutes(handler *gin.RouterGroup, u usecase.Groups, l logger.Interface) {
+	r := &groupRoutes{u, l}
 
 	h := handler.Group("/group")
 	{
-		h.GET("/history", r.history)
-		h.POST("/do-translate", r.doTranslate)
+		h.POST("/group", r.createGroup)
+		h.GET("/groups", r.getAllGroups)
 	}
 }
 
-type historyResponse struct {
-	History []entity.group `json:"history"`
+type inpGroup struct {
+	Name        string `json:"name"`
+	Description string `json:"description"`
 }
 
-// @Summary     Show history
-// @Description Show all group history
-// @ID          history
-// @Tags  	    group
-// @Accept      json
-// @Produce     json
-// @Success     200 {object} historyResponse
-// @Failure     500 {object} response
-// @Router      /group/history [get]
-func (r *groupRoutes) history(c *gin.Context) {
-	groups, err := r.t.History(c.Request.Context())
-	if err != nil {
-		r.l.Error(err, "http - v1 - history")
+// @Summary Create Group
+// @Description Create a new group
+// @Tags         Group
+// @ID create-group
+// @Accept json
+// @Produce json
+// @Param Group body inpGroup true "Group object to be created"
+// @Success 201 {object} int "Created Group"
+// @Failure 404 {object} string "Not Found"
+// @Failure 500 {object} string "Not Found"
+// @Router /address [post]
+func (r *groupRoutes) createGroup(c *gin.Context) {
+	var group inpGroup
+	if err := c.ShouldBindJSON(&group); err != nil {
+		r.l.Error(err, "http - v1 - Address")
 		errorResponse(c, http.StatusInternalServerError, "database problems")
 
 		return
 	}
 
-	c.JSON(http.StatusOK, historyResponse{groups})
-}
-
-type doTranslateRequest struct {
-	Source      string `json:"source"       binding:"required"  example:"auto"`
-	Destination string `json:"destination"  binding:"required"  example:"en"`
-	Original    string `json:"original"     binding:"required"  example:"текст для перевода"`
-}
-
-// @Summary     Translate
-// @Description Translate a text
-// @ID          do-translate
-// @Tags  	    group
-// @Accept      json
-// @Produce     json
-// @Param       request body doTranslateRequest true "Set up group"
-// @Success     200 {object} entity.group
-// @Failure     400 {object} response
-// @Failure     500 {object} response
-// @Router      /group/do-translate [post]
-func (r *groupRoutes) doTranslate(c *gin.Context) {
-	var request doTranslateRequest
-	if err := c.ShouldBindJSON(&request); err != nil {
-		r.l.Error(err, "http - v1 - doTranslate")
-		errorResponse(c, http.StatusBadRequest, "invalid request body")
-
-		return
-	}
-
-	group, err := r.t.Translate(
-		c.Request.Context(),
-		entity.group{
-			Source:      request.Source,
-			Destination: request.Destination,
-			Original:    request.Original,
-		},
-	)
+	id, err := r.u.Create(c.Request.Context(), entity.Group{
+		Name:        group.Name,
+		Description: group.Description,
+	})
 	if err != nil {
-		r.l.Error(err, "http - v1 - doTranslate")
-		errorResponse(c, http.StatusInternalServerError, "group service problems")
+		r.l.Error(err, "http - v1 - Group")
+		errorResponse(c, http.StatusInternalServerError, "database problems")
 
 		return
 	}
 
-	c.JSON(http.StatusOK, group)
+	c.JSON(http.StatusCreated, id)
+}
+
+// @Summary Get all groups
+// @Description Get all groups
+// @Tags         Group
+// @ID get-all-groups
+// @Produce json
+// @Success 200 {array} entity.Address "List of Address"
+// @Failure 404 {object} string "Not Found"
+// @Failure 500 {object} string "Not Found"
+// @Router /address [get]
+func (r *groupRoutes) getAllGroups(c *gin.Context) {
+	Addresss, err := r.u.GetAll(c.Request.Context())
+	if err != nil {
+		r.l.Error(err, "http - v1 - Group")
+		errorResponse(c, http.StatusInternalServerError, "database problems")
+
+		return
+	}
+
+	c.JSON(http.StatusOK, Addresss)
 }

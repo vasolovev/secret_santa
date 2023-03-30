@@ -1,4 +1,4 @@
-module github.com/evrone/go-clean-template
+module github.com/vasolovev/secret_santa
 
 go 1.17
 
